@@ -6,21 +6,37 @@ import torch.optim as optim
 from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 
-from config import cfg
-from utils import set_seed, get_device, get_model, create_dataloaders, save_model
+from config import train_cfg, TrainConfig
+from utils import set_seed, get_device, get_model, save_model
+from dataset import create_dataloaders
 
-def plot_training_metrics(train_losses, val_losses, train_accs, val_accs, val_steps, output_dir):
+
+def plot_training_metrics(
+    train_losses: list, 
+    val_losses: list, 
+    train_accs: list, 
+    val_accs: list, 
+    val_steps: list, 
+    output_dir: str
+):
     """
-    Stampa i grafici della loss di training vs validation e accuracy training vs validation.
+    Plots training and validation metrics.
+
+    Args:
+        train_losses (list): List of training losses.
+        val_losses (list): List of validation losses.
+        train_accs (list): List of training accuracies.
+        val_accs (list): List of validation accuracies.
+        val_steps (list): List of validation steps.
+        output_dir (str): Directory to save the plot.
     """
     epochs = range(1, len(train_losses) + 1)
     
     plt.figure(figsize=(12, 5))
     
-    # Grafico 1: Train vs Validation Loss
+    # Train vs Validation Loss
     plt.subplot(1, 2, 1)
     plt.plot(epochs, train_losses, label='Train Loss')
-    # Val metrics sono calcolate ogni tot step
     if val_losses:
         plt.plot(val_steps, val_losses, label='Validation Loss', marker='o')
     plt.xlabel('Epochs')
@@ -28,7 +44,7 @@ def plot_training_metrics(train_losses, val_losses, train_accs, val_accs, val_st
     plt.title('Train vs Validation Loss')
     plt.legend()
     
-    # Grafico 2: Train vs Validation Accuracy
+    # Train vs Validation Accuracy
     plt.subplot(1, 2, 2)
     plt.plot(epochs, train_accs, label='Train Acc')
     if val_accs:
@@ -41,7 +57,7 @@ def plot_training_metrics(train_losses, val_losses, train_accs, val_accs, val_st
     plt.tight_layout()
     plot_path = os.path.join(output_dir, 'training_metrics.png')
     plt.savefig(plot_path)
-    print(f"[INFO] Grafici training salvati in '{plot_path}'")
+    print(f"[INFO] Training metrics saved to '{plot_path}'")
     
     # Check if running in a notebook
     try:
@@ -53,17 +69,34 @@ def plot_training_metrics(train_losses, val_losses, train_accs, val_accs, val_st
         pass
 
 
-def validate(model, val_loader, criterion, device, epoch, num_epochs):
+def validate(
+    model: torch.nn.Module,
+    val_loader: torch.utils.data.DataLoader,
+    criterion: torch.nn.Module,
+    device: torch.device,
+    epoch: int,
+    num_epochs: int
+):
     """
-    Esegue un passaggio di validazione.
+    Validate the model on the validation set.
+
+    Args:
+        model (torch.nn.Module): The model to validate.
+        val_loader (torch.utils.data.DataLoader): The validation data loader.
+        criterion (torch.nn.Module): The loss function.
+        device (torch.device): The device to run the validation on.
+        epoch (int): The current epoch number.
+        num_epochs (int): The total number of epochs.
+
+    Returns:
+        tuple: A tuple containing the average validation loss and accuracy.
     """
     model.eval()
     val_loss = 0.0
     val_correct = 0
     val_total = 0
     
-    desc = f"Epoch {epoch}/{num_epochs} [Val]" if num_epochs > 0 else f"Epoch {epoch} [Val]"
-    val_pbar = tqdm(val_loader, desc=desc, leave=False)
+    val_pbar = tqdm(val_loader, desc=f"Epoch {epoch}/{num_epochs} [Val]" if num_epochs > 0 else f"Epoch {epoch} [Val]", leave=False)
     
     with torch.no_grad():
         for inputs, labels in val_pbar:
@@ -83,33 +116,35 @@ def validate(model, val_loader, criterion, device, epoch, num_epochs):
     
     return avg_val_loss, avg_val_acc
 
-def train(config=None):
+
+def train(config: TrainConfig = None):
+    """
+    Trains the model on the training set and validates on the validation set.
+
+    Args:
+        config (TrainConfig): The configuration object.
+    """
     if config is None:
-        config = cfg
+        config = train_cfg
     set_seed(config.seed)
     device = get_device(config.device)
+
+    print(f"[TRAIN] Starting training of {config.model_name}")
     
     # Create output directory
     os.makedirs(config.output_dir, exist_ok=True)
     
-    # 1. Dati
+    # Data loading
     train_loader, val_loader, _ = create_dataloaders(config)
     
-    # 2. Modello
-    print(f"[TRAIN] Avvio training {config.model_name}...")
-    
-    # Caricamento dinamico
+    # Model loading
     try:
         model = get_model(config.model_name, config.input_channels, config.num_classes).to(device)
     except ValueError as e:
-        print(f"[ERRORE] {e}")
+        print(f"[ERROR] {e}")
         return
-
-    # Config num_classes viene passato al modello in get_model
-    if config.model_name == "GC1":
-        print(f"[INFO] Modello GC1 configurato per {config.num_classes} classi.")
     
-    # 3. Optimizer & Scheduler
+    # Optimizer & Scheduler
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
     
@@ -128,12 +163,7 @@ def train(config=None):
     val_epochs_list = []
     
     try:
-        # ---------------------------------------------------
-        # LOOP DELLE EPOCHE
-        # ---------------------------------------------------
         for epoch in range(1, config.num_epochs + 1):
-            
-            # --- TRAINING ---
             model.train()
             train_loss = 0.0
             train_correct = 0
@@ -157,7 +187,6 @@ def train(config=None):
                 
                 train_pbar.set_postfix({'loss': loss.item()})
             
-            # Step dello scheduler alla fine dell'epoca
             scheduler.step()
                 
             avg_train_loss = train_loss / len(train_loader.dataset)
@@ -166,7 +195,6 @@ def train(config=None):
             train_loss_history.append(avg_train_loss)
             train_acc_history.append(avg_train_acc)
 
-            # --- VALIDATION ---
             if epoch % config.val_epochs == 0:
                 avg_val_loss, avg_val_acc = validate(model, val_loader, criterion, device, epoch, config.num_epochs)
                 
@@ -196,35 +224,32 @@ def train(config=None):
                 print(f"Epoch {epoch} | LR: {current_lr:.6f} | Train Loss: {avg_train_loss:.4f} | Train Acc: {avg_train_acc:.2f}%")
         
     except KeyboardInterrupt:
-            print("\n[TRAIN] Interrotto dall'utente (Ctrl+C).")
+            print("\n[TRAIN] Training interrupted by user (Ctrl+C).")
             
     plot_training_metrics(train_loss_history, val_loss_history, train_acc_history, val_acc_history, val_epochs_list, config.output_dir)
 
-    # Save last model
-    # Note: checkpoint_path in config is the base name, we might want to save exactly that one or with epoch
     last_model_path = os.path.join(config.output_dir, config.checkpoint_path)
     save_model(model, last_model_path, optimizer, last_val_acc, last_epoch)
     print(f"--> Last Model Saved at {last_model_path}")
-    print("[TRAIN] Completato.")
+    print("[TRAIN] Completed.")
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Garbage Classifier")
+    parser = argparse.ArgumentParser(description="Train Classifier")
     
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=None)
     parser.add_argument("--batch_size", type=int, help="Batch size", default=None)
     parser.add_argument("--lr", type=float, help="Learning rate", default=None)
     parser.add_argument("--output_dir", type=str, help="Output directory", default=None)
     parser.add_argument("--data_dir", type=str, help="Root directory for dataset", default=None)
-    parser.add_argument("--model_name", type=str, help="Model name (e.g. GC1)", default=None)
-    
-    # Extended Arguments
+    parser.add_argument("--model_name", type=str, help="Model name", default=None)
     parser.add_argument("--val_epochs", type=int, help="Validation frequency (epochs)", default=None)
     parser.add_argument("--step_size", type=int, help="Scheduler step size", default=None)
     parser.add_argument("--gamma", type=float, help="Scheduler gamma", default=None)
     parser.add_argument("--val_split", type=float, help="Validation split ratio", default=None)
     parser.add_argument("--test_split", type=float, help="Test split ratio", default=None)
     parser.add_argument("--img_size", type=int, help="Image size", default=None)
-    parser.add_argument("--compute_stats", action="store_true", help="Compute dataset stats (default: False)")
+    parser.add_argument("--compute_stats", type=bool, action="store_true", help="Compute dataset stats", default=None)
     parser.add_argument("--mean", type=float, nargs='+', help="Mean for normalization", default=None)
     parser.add_argument("--std", type=float, nargs='+', help="Std for normalization", default=None)
     parser.add_argument("--seed", type=int, help="Random seed", default=None)
@@ -235,25 +260,24 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # Override config defaults
-    if args.epochs is not None: cfg.num_epochs = args.epochs
-    if args.batch_size is not None: cfg.batch_size = args.batch_size
-    if args.lr is not None: cfg.learning_rate = args.lr
-    if args.output_dir is not None: cfg.output_dir = args.output_dir
-    if args.data_dir is not None: cfg.root_dir = args.data_dir
-    if args.model_name is not None: cfg.model_name = args.model_name
-    
-    if args.val_epochs is not None: cfg.val_epochs = args.val_epochs
-    if args.step_size is not None: cfg.step_size = args.step_size
-    if args.gamma is not None: cfg.gamma = args.gamma
-    if args.val_split is not None: cfg.val_split = args.val_split
-    if args.test_split is not None: cfg.test_split = args.test_split
-    if args.img_size is not None: cfg.img_size = args.img_size
-    cfg.compute_stats = args.compute_stats
-    if args.mean is not None: cfg.mean = args.mean
-    if args.std is not None: cfg.std = args.std
-    if args.seed is not None: cfg.seed = args.seed
-    if args.num_workers is not None: cfg.num_workers = args.num_workers
-    if args.device is not None: cfg.device = args.device
-    if args.checkpoint_path is not None: cfg.checkpoint_path = args.checkpoint_path
+    if args.epochs is not None: train_cfg.num_epochs = args.epochs
+    if args.batch_size is not None: train_cfg.batch_size = args.batch_size
+    if args.lr is not None: train_cfg.learning_rate = args.lr
+    if args.output_dir is not None: train_cfg.output_dir = args.output_dir
+    if args.data_dir is not None: train_cfg.root_dir = args.data_dir
+    if args.model_name is not None: train_cfg.model_name = args.model_name
+    if args.val_epochs is not None: train_cfg.val_epochs = args.val_epochs
+    if args.step_size is not None: train_cfg.step_size = args.step_size
+    if args.gamma is not None: train_cfg.gamma = args.gamma
+    if args.val_split is not None: train_cfg.val_split = args.val_split
+    if args.test_split is not None: train_cfg.test_split = args.test_split
+    if args.img_size is not None: train_cfg.img_size = args.img_size
+    if args.compute_stats is not None: train_cfg.compute_stats = args.compute_stats
+    if args.mean is not None: train_cfg.mean = args.mean
+    if args.std is not None: train_cfg.std = args.std
+    if args.seed is not None: train_cfg.seed = args.seed
+    if args.num_workers is not None: train_cfg.num_workers = args.num_workers
+    if args.device is not None: train_cfg.device = args.device
+    if args.checkpoint_path is not None: train_cfg.checkpoint_path = args.checkpoint_path
         
-    train(cfg)
+    train(train_cfg)

@@ -1,6 +1,7 @@
 from typing import List
 
-class Config:
+
+class TrainConfig:
     def __init__(
         self,
         root_dir: str,
@@ -61,16 +62,70 @@ class Config:
         self.input_channels = 3
 
     def __repr__(self):
-        return (f"Config(root_dir='{self.root_dir}', model_name='{self.model_name}', "
+        return (f"TrainConfig(root_dir='{self.root_dir}', model_name='{self.model_name}', "
                 f"batch_size={self.batch_size}, num_epochs={self.num_epochs}, "
                 f"lr={self.learning_rate}, device='{self.device}')")
 
-# Default Configuration Object
-cfg = Config(
+
+class TestConfig:
+    def __init__(
+        self,
+        root_dir: str,
+        model_name: str,
+        batch_size: int,
+            val_split: float,
+        test_split: float,
+        img_size: int,
+        mean: List[float],
+        std: List[float],
+        seed: int,
+        num_workers: int,
+        device: str,
+        checkpoint_path: str,
+        output_dir: str = "out_test",
+    ):
+        # Paths and Model
+        self.root_dir = root_dir
+        self.output_dir = output_dir
+        self.model_name = model_name
+        
+        # Inference Parameters
+        self.batch_size = batch_size
+        
+        # Data Loading
+        self.val_split = val_split
+        self.test_split = test_split
+        
+        # Input Images
+        self.img_size = img_size
+        
+        # Normalization (must match training)
+        self.mean = mean
+        self.std = std
+        self.compute_stats = False # Always False for inference
+        
+        # System
+        self.seed = seed
+        self.num_workers = num_workers
+        self.device = device
+        self.checkpoint_path = checkpoint_path
+        
+        # Runtime
+        self.num_classes = 0
+        self.input_channels = 3
+
+    def __repr__(self):
+        return (f"TestConfig(root_dir='{self.root_dir}', model_name='{self.model_name}', "
+                f"batch_size={self.batch_size}, device='{self.device}', "
+                f"checkpoint='{self.checkpoint_path}')")
+
+
+# Training Configuration
+train_cfg = TrainConfig(
     # Paths and Model
     root_dir='images',      
-    model_name='GC1',
-    output_dir="out"
+    model_name=None,
+    output_dir="out",
 
     # Hyperparameters
     batch_size=32,
@@ -90,13 +145,41 @@ cfg = Config(
     img_size=256,
 
     # Normalization
-    compute_stats=False,
-    mean=[0.6582812666893005, 0.6344856023788452, 0.6075275540351868],
-    std=[0.6582812666893005, 0.6344856023788452, 0.6075275540351868],
+    compute_stats=True,
+    mean=[0.5, 0.5, 0.5],
+    std=[0.5, 0.5, 0.5],
 
     # System
     seed=42,
     num_workers=0,
     device="auto",
-    checkpoint_path="garbage_custom_1_best.pth",
+    checkpoint_path="best.pth",
+)
+
+# Test Configuration
+test_cfg = TestConfig(
+    # Paths and Model
+    root_dir='images',
+    model_name=None, # must match checkpoint model name
+    output_dir="out_test",
+
+    # Inference Params
+    batch_size=32,
+    
+    # Data Split
+    val_split=0.15, # must be the same as training for correct split of test set
+    test_split=0.15, # must be the same as training for correct split of test set
+
+    # Input Images
+    img_size=256, # must match training
+
+    # Normalization
+    mean=[0.5, 0.5, 0.5], # must match training
+    std=[0.5, 0.5, 0.5], # must match training
+
+    # System
+    seed=42, # must be the same as training for correct split of test set
+    num_workers=0,
+    device="auto",
+    checkpoint_path="best.pth",
 )

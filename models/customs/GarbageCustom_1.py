@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class GC1(nn.Module):
     """
     First Custom Convolutional Neural Network for Garbage Classification
@@ -53,7 +54,7 @@ class GC1(nn.Module):
         
     def _init_weights(self):
         """
-        Inizializza i pesi con He Initialization (Kaiming Normal).
+        Initialize weights for convolutional and fully connected layers using Kaiming Normal initialization.
         """
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -87,6 +88,4 @@ class GC1(nn.Module):
         # FC
         out = self.fc1(out)
         
-        return out
-
         return out
