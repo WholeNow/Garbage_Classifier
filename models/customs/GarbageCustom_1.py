@@ -3,7 +3,7 @@ import torch.nn as nn
 
 class GC1(nn.Module):
     """
-    Custom Convolutional Neural Network for Garbage Classification
+    First Custom Convolutional Neural Network for Garbage Classification
 
     Layers:
         conv1: First convolutional layer (dim -> 256x256x8)
@@ -12,13 +12,13 @@ class GC1(nn.Module):
         pool2: Second max pooling layer (dim -> 64x64x16)
         conv3: Third convolutional layer (dim -> 64x64x32)
         pool3: Third max pooling layer (dim -> 32x32x32)
-        fc1: Fully connected layer (dim -> 6)
-        softmax: Softmax layer (dim -> 6)
+        fc1: Fully connected layer (dim -> num_classes)
+        softmax: Softmax layer (dim -> num_classes)
 
     Args:
         input_size (int): Number of input channels
     """
-    def __init__(self, input_size):
+    def __init__(self, input_size, num_classes):
         super(GC1, self).__init__()
         
         # --- Layer Definition ---
@@ -43,10 +43,10 @@ class GC1(nn.Module):
         # Third max pooling layer (dim -> 32x32x32)
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
-        # Fully connected layer (dim -> 6)
+        # Fully connected layer (dim -> num_classes)
         # Input image 256 -> pool 128 -> pool 64 -> pool 32. 
         # Channels 32. Flatten -> 32 * 32 * 32
-        self.fc1 = nn.Linear(32 * 32 * 32, 6)
+        self.fc1 = nn.Linear(32 * 32 * 32, num_classes)
         
         # Initializing weights
         self._init_weights()
@@ -89,17 +89,4 @@ class GC1(nn.Module):
         
         return out
 
-    def save_model(self, path: str, optimizer=None, val_acc=None, epoch=None):
-        state = {'model_state_dict': self.state_dict()}
-        if optimizer is not None:
-            state['optimizer_state_dict'] = optimizer.state_dict()
-        if val_acc is not None:
-            state['val_acc'] = val_acc
-        if epoch is not None:
-            state['epoch'] = epoch
-        torch.save(state, path)
-
-    def load_model(self, path: str, device):
-        checkpoint = torch.load(path, map_location=device)
-        self.load_state_dict(checkpoint['model_state_dict'])
-        return checkpoint
+        return out
