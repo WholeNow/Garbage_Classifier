@@ -6,6 +6,7 @@ from PIL import Image
 
 # Models
 from models.customs.GarbageCustom_1 import GC1
+from models.Xception import Xception
 
 
 def set_seed(seed: int):
@@ -50,13 +51,12 @@ def get_device(device_pref: str = "auto"):
         return torch.device("cpu")
 
 
-def get_model(model_name: str, input_channels: int, num_classes: int):
+def get_model(model_name: str, num_classes: int, pretrained: bool = True):
     """
     Get model instance.
 
     Args:
         model_name (str): Model name.
-        input_channels (int): Number of input channels.
         num_classes (int): Number of classes.
 
     Returns:
@@ -66,7 +66,9 @@ def get_model(model_name: str, input_channels: int, num_classes: int):
         raise ValueError("Model name must be specified.")
     
     if model_name == "GC1":
-        return GC1(input_size=input_channels, num_classes=num_classes)
+        return GC1(num_classes=num_classes)
+    if model_name == "Xception":
+        return Xception(num_classes=num_classes, pretrained=pretrained)
     else:
         raise ValueError(f"Model '{model_name}' not recognized.")
 

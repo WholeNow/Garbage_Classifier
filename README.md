@@ -27,7 +27,8 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | Parameter | Description | Accepted Values | Default |
 |-----------|-------------|-----------------|---------|
 | `root_dir` | Path to the root directory containing the dataset folders. | `str` (path) | `'images'` |
-| `model_name` | Identifier for the model architecture (e.g., 'GC1'). | `str` | `None` |
+| `model_name` | Identifier for the model architecture. See the full list in the [Model Name List](#model-name-list) section. | `str` | `None` |
+| `pretrained` | Whether to load pretrained weights (only used by some backbones). **Note**: currently applies to `Xception`. Reserved for `ResNet` once added. | `bool` | `True` |
 | `output_dir` | Directory where outputs (checkpoints, plots) will be saved. | `str` (path) | `'out'` / `'out_test'` |
 | `device` | Compute device to use. `'auto'` selects CUDA/MPS/CPU automatically. | `'cpu'`, `'cuda'`, `'mps'`, `'auto'` | `'auto'` |
 | `seed` | Random seed for reproducibility. **Test Requirement**: Must match the training seed if relying on random splits to ensure the test set remains isolated. | `int` | `42` |
@@ -54,3 +55,49 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | Parameter | Description | Accepted Values | Default |
 |-----------|-------------|-----------------|---------|
 | `test_split` | Fraction of data used for testing. **Test Requirement**: Must match `TrainConfig.test_split` if loading data from the same source folders to ensure the same split is generated. | `float` (0.0-1.0) | `0.15` |
+
+## Models
+
+### Model Name List
+
+| `model_name` | Required input | Supports `pretrained` | Notes |
+|---|---:|:---:|---|
+| `Xception` | `3 x 299 x 299` | ✅ | Uses a `timm` backbone; input size is enforced in this repo |
+| `GC1` | `3 x 256 x 256` | ❌ | Custom CNN; test 1 |
+
+### Xception (`model_name='Xception'`)
+
+The Xception weights commonly referenced for this architecture are a PyTorch port of the Keras implementation (credited to tstandley, adapted by cadene):
+
+- Required input: **`3 x 299 x 299`** (so set `img_size=299`)
+
+* ##### `pretrained=True` (fine-tuning)
+
+    When you fine-tune Xception with pretrained weights, keep these normalization values:
+
+    ```python
+    mean=[0.5, 0.5, 0.5]
+    std=[0.5, 0.5, 0.5]
+    ```
+
+* ##### `pretrained=False` (training from scratch)
+
+    If you train Xception from scratch, you may change normalization (`mean/std`) for your dataset, but you still must keep the required input size (`299 x 299`).
+
+### GarbageCustom_1 / GC1 (`model_name='GC1'`)
+
+GC1 is a fixed-shape CNN and enforces the input tensor shape at runtime:
+
+- Required input: **`3 x 256 x 256`** (so set `img_size=256`)
+- RGB only
+
+## Garbage Dataset Normalization (Training From Scratch)
+
+If you want to train a model **from scratch** on the **Garbage** dataset, set the normalization stats explicitly to:
+
+```python
+mean=[0.6582812666893005, 0.6344856023788452, 0.6075275540351868]
+std=[0.6582812666893005, 0.6344856023788452, 0.6075275540351868]
+```
+
+In this case, use `compute_stats=False` so the provided `mean/std` are not overridden.

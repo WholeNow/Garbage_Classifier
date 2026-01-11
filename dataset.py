@@ -55,18 +55,6 @@ class ClassificationDataset(Dataset):
     
     def get_targets(self):
         return [label for _, label in self.data]
-    
-    def detect_channels(self):
-        """
-        Detects the number of channels from the first image in the dataset.
-        """
-        if len(self.data) == 0:
-            return 3
-        img_path, _ = self.data[0]
-        img = Image.open(img_path)
-        if img.mode == 'L':
-            return 1
-        return 3
 
 
 def get_dataset_stats(dataset: Dataset, batch_size: int, num_workers: int, img_size: int):
@@ -124,7 +112,6 @@ def create_dataloaders(config):
     # Detect config properties
     temp_ds = ClassificationDataset(root_dir=config.root_dir, transform=None)
     config.num_classes = len(temp_ds.classes)
-    config.input_channels = temp_ds.detect_channels()
 
     # Stats
     if config.compute_stats:

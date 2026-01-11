@@ -139,7 +139,7 @@ def train(config: TrainConfig = None):
     
     # Model loading
     try:
-        model = get_model(config.model_name, config.input_channels, config.num_classes).to(device)
+        model = get_model(config.model_name, config.num_classes, pretrained=getattr(config, "pretrained", True)).to(device)
     except ValueError as e:
         print(f"[ERROR] {e}")
         return

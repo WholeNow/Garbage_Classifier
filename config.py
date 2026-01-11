@@ -6,6 +6,7 @@ class TrainConfig:
         self,
         root_dir: str,
         model_name: str,
+        pretrained: bool,
         batch_size: int,
         num_epochs: int,
         val_epochs: int,
@@ -28,6 +29,7 @@ class TrainConfig:
         self.root_dir = root_dir
         self.output_dir = output_dir
         self.model_name = model_name
+        self.pretrained = pretrained
         
         # Hyperparameters
         self.batch_size = batch_size
@@ -125,6 +127,7 @@ train_cfg = TrainConfig(
     # Paths and Model
     root_dir='images',      
     model_name=None,
+    pretrained=True,
     output_dir="out",
 
     # Hyperparameters
