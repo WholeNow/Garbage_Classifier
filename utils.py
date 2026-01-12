@@ -8,6 +8,7 @@ from PIL import Image
 from models.customs.GarbageCustom_1 import GC1
 from models.customs.GarbageCustom_2 import GC2
 from models.Xception import Xception
+from models.Resnet18 import Resnet18
 
 def set_seed(seed: int):
     """
@@ -71,6 +72,8 @@ def get_model(model_name: str, num_classes: int, pretrained: bool = True):
         return GC2(num_classes=num_classes)
     if model_name == "Xception":
         return Xception(num_classes=num_classes, pretrained=pretrained)
+    if model_name == "Resnet18":
+        return Resnet18(num_classes=num_classes, pretrained=pretrained)
     else:
         raise ValueError(f"Model '{model_name}' not recognized.")
 

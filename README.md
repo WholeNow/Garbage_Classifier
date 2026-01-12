@@ -47,6 +47,8 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | `val_epochs` | Frequency (in epochs) to perform validation. | `int` | `1` |
 | `step_size` | Period of learning rate decay (StepLR scheduler). | `int` | `10` |
 | `gamma` | Multiplicative factor of learning rate decay. | `float` | `0.1` |
+| `l1_lambda` | L1 regularization strength. Set to `0.0` to disable. | `float` | `0.0` |
+| `l2_lambda` | L2 regularization strength. Set to `0.0` to disable. | `float` | `0.0` |
 | `val_split` | Fraction of data to use for validation. | `float` (0.0-1.0) | `0.15` |
 | `test_split` | Fraction of data to reserve for testing. | `float` (0.0-1.0) | `0.15` |
 | `compute_stats` | If `True`, computes dataset mean and std before training. Defaults to manual values if `False`. | `bool` | `True` |
