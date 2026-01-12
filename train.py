@@ -177,6 +177,11 @@ def train(config: TrainConfig = None):
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
+
+                l1_reg = sum(p.abs().sum() for p in model.parameters())
+                l2_reg = sum(p.pow(2.0).sum() for p in model.parameters())
+                loss = loss + config.l1_lambda * l1_reg + config.l2_lambda * l2_reg
+
                 loss.backward()
                 optimizer.step()
                 

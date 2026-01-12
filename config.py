@@ -13,6 +13,8 @@ class TrainConfig:
         learning_rate: float,
         step_size: int,
         gamma: float,
+        l1_lambda: float,
+        l2_lambda: float, 
         val_split: float,
         test_split: float,
         img_size: int,
@@ -41,6 +43,10 @@ class TrainConfig:
         self.step_size = step_size
         self.gamma = gamma
         
+        # Regularization
+        self.l1_lambda = l1_lambda
+        self.l2_lambda = l2_lambda
+
         # Split Dataset
         self.val_split = val_split
         self.test_split = test_split
@@ -139,6 +145,10 @@ train_cfg = TrainConfig(
     # Scheduler (Step Decay)
     step_size=10,
     gamma=0.1,
+
+    # Regularization
+    l1_lambda=0.0001,
+    l2_lambda=0.0001,
 
     # Split Dataset
     val_split=0.15,
