@@ -251,6 +251,8 @@ if __name__ == "__main__":
     parser.add_argument("--val_epochs", type=int, help="Validation frequency (epochs)", default=None)
     parser.add_argument("--step_size", type=int, help="Scheduler step size", default=None)
     parser.add_argument("--gamma", type=float, help="Scheduler gamma", default=None)
+    parser.add_argument("--l1_lambda", type=float, help="L1 regularization lambda", default=None)
+    parser.add_argument("--l2_lambda", type=float, help="L2 regularization lambda", default=None)
     parser.add_argument("--val_split", type=float, help="Validation split ratio", default=None)
     parser.add_argument("--test_split", type=float, help="Test split ratio", default=None)
     parser.add_argument("--img_size", type=int, help="Image size", default=None)
@@ -274,6 +276,8 @@ if __name__ == "__main__":
     if args.val_epochs is not None: train_cfg.val_epochs = args.val_epochs
     if args.step_size is not None: train_cfg.step_size = args.step_size
     if args.gamma is not None: train_cfg.gamma = args.gamma
+    if args.l1_lambda is not None: train_cfg.l1_lambda = args.l1_lambda
+    if args.l2_lambda is not None: train_cfg.l2_lambda = args.l2_lambda
     if args.val_split is not None: train_cfg.val_split = args.val_split
     if args.test_split is not None: train_cfg.test_split = args.test_split
     if args.img_size is not None: train_cfg.img_size = args.img_size
