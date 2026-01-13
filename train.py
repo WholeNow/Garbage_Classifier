@@ -1,5 +1,6 @@
 import os
 import argparse
+from xml.parsers.expat import model
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -176,11 +177,11 @@ def train(config: TrainConfig = None):
                 
                 optimizer.zero_grad()
                 outputs = model(inputs)
-                loss = criterion(outputs, labels)
 
-                l1_reg = sum(p.abs().sum() for p in model.parameters())
-                l2_reg = sum(p.pow(2.0).sum() for p in model.parameters())
-                loss = loss + config.l1_lambda * l1_reg + config.l2_lambda * l2_reg
+                l1_reg = sum(p.abs().sum() for name, p in model.named_parameters() if 'weight' in name)
+                l2_reg = sum(p.pow(2.0).sum() for name, p in model.named_parameters() if 'weight' in name)
+
+                loss = criterion(outputs, labels) + config.l1_lambda * l1_reg + config.l2_lambda * l2_reg
 
                 loss.backward()
                 optimizer.step()
