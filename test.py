@@ -5,7 +5,7 @@ import torch.nn as nn
 from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score, precision_recall_curve
 
 from config import test_cfg, TestConfig
 from utils import get_device, get_model, load_model
@@ -42,6 +42,41 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_dir):
         pass
     except AttributeError:
         pass
+
+
+def plot_precision_recall_curve(y_true, y_scores, output_dir):
+    """
+    Plots the Precision-Recall curve.
+
+    Args:
+        y_true (list): True labels.
+        y_scores (list): Predicted scores/probabilities.
+        output_dir (str): Directory to save the precision-recall curve image.
+    """
+    precision, recall, _ = precision_recall_curve(y_true, y_scores)
+    plt.figure(figsize=(8, 6))
+    plt.plot(recall, precision, marker='.')
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Precision-Recall Curve')
+    plt.grid()
+    plt.tight_layout()
+
+    plot_path = os.path.join(output_dir, 'precision_recall_curve.png')
+    plt.savefig(plot_path)
+    print(f"[INFO] Precision-Recall curve saved to '{plot_path}'")
+
+    # Check if running in a notebook
+    try:
+        if 'IPKernelApp' in get_ipython().config:
+            plt.show()
+    except NameError:
+        pass
+    except AttributeError:
+        pass
+
+
+
 
 
 def test(config: TestConfig = None):
@@ -102,11 +137,16 @@ def test(config: TestConfig = None):
             all_labels.extend(labels.cpu().numpy())
 
     accuracy = 100 * correct / total
+    f1_score_value = f1_score(all_labels, all_preds, average='weighted')
+
     print(f"[TEST] Test Set Accuracy: {accuracy:.2f}%")
+    print(f"[TEST] Test Set F1 Score: {f1_score_value:.2f}")
     
     # Confusion Matrix
     plot_confusion_matrix(all_labels, all_preds, classes)
 
+    # Precision-Recall Curve
+    plot_precision_recall_curve(all_labels, all_preds, config.output_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test Classifier")

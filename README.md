@@ -28,7 +28,7 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 |-----------|-------------|-----------------|---------|
 | `root_dir` | Path to the root directory containing the dataset folders. | `str` (path) | `'images'` |
 | `model_name` | Identifier for the model architecture. See the full list in the [Model Name List](#model-name-list) section. | `str` | `None` |
-| `pretrained` | Whether to load pretrained weights (only used by some backbones). **Note**: currently applies to `Xception`. Reserved for `ResNet` once added. | `bool` | `True` |
+| `pretrained` | Whether to load pretrained weights (only used by some backbones). **Note**: applies to `Xception` and `Resnet18`; ignored by custom CNNs (`GC1`, `GC2`). | `bool` | `True` |
 | `output_dir` | Directory where outputs (checkpoints, plots) will be saved. | `str` (path) | `'out'` / `'out_test'` |
 | `device` | Compute device to use. `'auto'` selects CUDA/MPS/CPU automatically. | `'cpu'`, `'cuda'`, `'mps'`, `'auto'` | `'auto'` |
 | `seed` | Random seed for reproducibility. **Test Requirement**: Must match the training seed if relying on random splits to ensure the test set remains isolated. | `int` | `42` |
@@ -65,7 +65,9 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | `model_name` | Required input | Supports `pretrained` | Notes |
 |---|---:|:---:|---|
 | `Xception` | `3 x 299 x 299` | ✅ | Uses a `timm` backbone; input size is enforced in this repo |
+| `Resnet18` | `3 x 224 x 224` | ✅ | Torchvision backbone with the final FC replaced for `num_classes` |
 | `GC1` | `3 x 256 x 256` | ❌ | Custom CNN; test 1 |
+| `GC2` | `3 x 256 x 256` | ❌ | Custom CNN with dropout and a deeper head |
 
 ### Xception (`model_name='Xception'`)
 
@@ -86,12 +88,27 @@ The Xception weights commonly referenced for this architecture are a PyTorch por
 
     If you train Xception from scratch, you may change normalization (`mean/std`) for your dataset, but you still must keep the required input size (`299 x 299`).
 
+### Resnet18 (`model_name='Resnet18'`)
+
+The ResNet-18 wrapper is based on the torchvision backbone with the classifier replaced to match `num_classes`.
+
+- Required input: **`3 x 224 x 224`** (set `img_size=224`)
+- `pretrained=True`: uses ImageNet weights; prefer ImageNet normalization (`mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`).
+- `pretrained=False`: you can use custom normalization, but the input size must stay `224 x 224`.
+
 ### GarbageCustom_1 / GC1 (`model_name='GC1'`)
 
 GC1 is a fixed-shape CNN and enforces the input tensor shape at runtime:
 
 - Required input: **`3 x 256 x 256`** (so set `img_size=256`)
 - RGB only
+
+### GarbageCustom_2 / GC2 (`model_name='GC2'`)
+
+GC2 is a deeper fixed-shape CNN with dropout regularization:
+
+- Required input: **`3 x 256 x 256`** (so set `img_size=256`)
+- RGB only; no pretrained weights
 
 ## Garbage Dataset Normalization (Training From Scratch)
 
