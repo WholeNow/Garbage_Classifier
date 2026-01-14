@@ -8,6 +8,7 @@ from PIL import Image
 from models.customs.GarbageCustom_1 import GC1
 from models.customs.GarbageCustom_2 import GC2
 from models.customs.GarbageCustom_3 import GC3
+from models.customs.GarbageCustom_4 import GC4
 
 from models.Xception import Xception
 from models.Resnet18 import Resnet18
@@ -74,6 +75,8 @@ def get_model(model_name: str, num_classes: int, pretrained: bool = True):
         return GC2(num_classes=num_classes)
     if model_name == "GC3":
         return GC3(num_classes=num_classes)
+    if model_name == "GC4":
+        return GC4(num_classes=num_classes)
     if model_name == "Xception":
         return Xception(num_classes=num_classes, pretrained=pretrained)
     if model_name == "Resnet18":

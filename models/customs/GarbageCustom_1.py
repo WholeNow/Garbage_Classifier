@@ -13,8 +13,7 @@ class GC1(nn.Module):
         pool2: Second max pooling layer (dim -> 64x64x16)
         conv3: Third convolutional layer (dim -> 64x64x32)
         pool3: Third max pooling layer (dim -> 32x32x32)
-        fc1: Fully connected layer (dim -> num_classes)
-        softmax: Softmax layer (dim -> num_classes)
+        fc1: Output layer (dim -> num_classes)
 
     Notes:
         This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
@@ -49,7 +48,7 @@ class GC1(nn.Module):
         # Third max pooling layer (dim -> 32x32x32)
         self.pool3 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
-        # Fully connected layer (dim -> num_classes) 
+        # Output layer (dim -> num_classes) 
         # Channels 32. Flatten -> 32 * 32 * 32
         self.fc1 = nn.Linear(in_features=32 * 32 * 32, out_features=num_classes)
         
