@@ -47,7 +47,7 @@ class CustomResidualBlock(nn.Module):
         out = self.relu3(out)
 
         # Add the input (identity) to the output
-        out += identity
+        out = out + identity
         out = self.relu(out)
 
         return out
