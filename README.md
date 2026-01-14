@@ -68,7 +68,7 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | `Resnet18` | `3 x 224 x 224` | ✅ | Torchvision backbone with the final FC replaced for `num_classes` |
 | `GC1` | `3 x 256 x 256` | ❌ | Custom CNN; test 1 |
 | `GC2` | `3 x 256 x 256` | ❌ | Custom CNN with dropout and a deeper head |
-
+| `GC3` | `3 x 256 x 256` | ❌ | Even deeper custom CNN with dropout, batch normalization, and additional convolutional layers |
 ### Xception (`model_name='Xception'`)
 
 The Xception weights commonly referenced for this architecture are a PyTorch port of the Keras implementation (credited to tstandley, adapted by cadene):
@@ -102,6 +102,8 @@ GC1 is a fixed-shape CNN and enforces the input tensor shape at runtime:
 
 - Required input: **`3 x 256 x 256`** (so set `img_size=256`)
 - RGB only
+- l1_alpha = 0.00005
+- l2_alpha = 0.0008
 
 ### GarbageCustom_2 / GC2 (`model_name='GC2'`)
 
@@ -109,6 +111,19 @@ GC2 is a deeper fixed-shape CNN with dropout regularization:
 
 - Required input: **`3 x 256 x 256`** (so set `img_size=256`)
 - RGB only; no pretrained weights
+- l1_alpha = 0.00005
+- l2_alpha = 0.0008
+
+### GarbageCustom_3 / GC3 (`model_name='GC3'`)
+
+GC3 is an even deeper fixed-shape CNN with dropout regularization, additional convolutional layers, and batch normalization:
+
+- Required input: **`3 x 256 x 256`** (so set `img_size=256`)
+- RGB only; no pretrained weights
+- l1_alpha = 0
+- l2_alpha = 0.0008
+
+
 
 ## Garbage Dataset Normalization (Training From Scratch)
 
