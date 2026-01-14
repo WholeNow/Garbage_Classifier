@@ -3,39 +3,58 @@ import torch.nn as nn
 
 
 class GC2(nn.Module):
+    """
+    Second Custom Convolutional Neural Network for Garbage Classification
 
+    Layers:
+        conv1: First convolutional layer (dim -> 256x256x12)
+        conv2: Second convolutional layer (dim -> 126x126x16)
+        pool: First max pooling layer (dim -> 63x63x16)
+        conv3: Third convolutional layer (dim -> 63x63x24)
+        conv4: Fourth convolutional layer (dim -> 30x30x32)
+        pool2: Second max pooling layer (dim -> 15x15x32)
+        fc1: Fully connected layer (dim -> 1024)
+        dropout: Dropout layer
+        fc2: Output layer (dim -> num_classes)
+    
+    Notes:
+        This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
+
+    Args:
+        num_classes (int): Number of output classes.
+    """
 
     def __init__(self, num_classes:int):
         super(GC2, self).__init__()
 
         # --- Layer Definition ---
         # Output size: (image_size - kernel_size + 2*padding) / stride + 1
+        # Receptive field per layer: rl = rl−1 + (kl − 1) × jl−1
         # First convolutional layer (dim -> 256x256x12)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=12, kernel_size=3, padding=1, stride=1)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=12, kernel_size=3, padding=1, stride=1) # RF: 3
         self.relu = nn.ReLU()
 
         # Second convolutional layer (dim -> 126x126x16)
-        self.conv2 = nn.Conv2d(12, 16, kernel_size=5, padding=1, stride=2)
+        self.conv2 = nn.Conv2d(12, 16, kernel_size=5, padding=1, stride=2) # RF: 7
         self.relu2 = nn.ReLU()
 
         # First max pooling layer (dim -> 63x63x16)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
         # Third convolutional layer (dim -> 63x63x24)
-        self.conv3 = nn.Conv2d(16, 24, kernel_size=3, padding=1, stride=1)
+        self.conv3 = nn.Conv2d(16, 24, kernel_size=3, padding=1, stride=1) # RF: 11
         self.relu3 = nn.ReLU()
 
         # Fourth convolutional layer (dim -> 30x30x32)
-        self.conv4 = nn.Conv2d(24, 32, kernel_size=5, padding=1, stride=2)
+        self.conv4 = nn.Conv2d(24, 32, kernel_size=5, padding=1, stride=2) # RF: 27
         self.relu4 = nn.ReLU()
 
         # Second max pooling layer (dim -> 15x15x32)
         self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
 
         # Fully connected layer (dim -> 1024)
-        # Input image 256 -> conv2 stride 2 -> 128 -> pool 64 -> conv4 stride 2 -> 30 -> pool2 15. 
         # Channels 32. Flatten -> 32 * 15 * 15
-        self.fc1 = nn.Linear(in_features=32 * 15 * 15, out_features= 1024)
+        self.fc1 = nn.Linear(in_features=32 * 15 * 15, out_features= 1024) 
         self.relu_fc1 = nn.ReLU()
         
         # Dropout layer
@@ -65,11 +84,11 @@ class GC2(nn.Module):
     
     def forward(self, x):
         if x.ndim != 4:
-            raise ValueError(f"GC1 expects a 4D tensor (N, 3, 256, 256), got shape {tuple(x.shape)}")
+            raise ValueError(f"GC2 expects a 4D tensor (N, 3, 256, 256), got shape {tuple(x.shape)}")
 
         if x.size(1) != 3 or x.size(2) != 256 or x.size(3) != 256:
             raise ValueError(
-                f"GC1 expects input shape (N, 3, 256, 256), got (N, {x.size(1)}, {x.size(2)}, {x.size(3)})"
+                f"GC2 expects input shape (N, 3, 256, 256), got (N, {x.size(1)}, {x.size(2)}, {x.size(3)})"
             )
 
         # Block 1
@@ -92,6 +111,7 @@ class GC2(nn.Module):
         # FC layers
         out = self.fc1(out)
         out = self.relu_fc1(out)
+        out = self.dropout(out)
         out = self.fc2(out)
 
         return out

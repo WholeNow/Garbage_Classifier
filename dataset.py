@@ -119,7 +119,7 @@ def create_dataloaders(config):
         config.mean = mean
         config.std = std
     
-    # Transform
+    # Transform using zero-centered normalization
     transform = transforms.Compose([
         transforms.Resize((config.img_size, config.img_size)),
         transforms.ToTensor(),
