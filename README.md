@@ -123,6 +123,15 @@ GC3 is an even deeper fixed-shape CNN with dropout regularization, additional co
 - l1_alpha = 0
 - l2_alpha = 0.0008
 
+### GarbageCustom_4 / GC4 (`model_name='GC4'`)
+GC4 is a residual-style CNN designed to be deeper than GC3 while keeping the head compact via global average pooling. Shape is enforced at runtime to avoid silent misconfigurations.
+
+- Required input: **`3 x 256 x 256`** (set `img_size=256`), RGB only.
+- Stem: 3x3 conv (32 ch) + BN + ReLU, followed by three lightweight residual blocks (each 3x3×3 with BN and identity skip) at 32→64→128 channels; early downsampling uses stride=3 to shrink 256→86→30 spatially.
+- Head: conv4 3x3 stride=2 to 256 ch, conv5 3x3 stride=1 to 512 ch, global average pooling, dropout 0.3, FC to `num_classes`.
+- l1_alpha = 0.00001
+- l2_alpha = 0.0009
+
 
 
 ## Garbage Dataset Normalization (Training From Scratch)

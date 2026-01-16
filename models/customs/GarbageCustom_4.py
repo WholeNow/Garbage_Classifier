@@ -1,16 +1,24 @@
 import torch
 import torch.nn as nn
 
+
 class CustomResidualBlock(nn.Module):
     """
-    Custom Residual Block with three convolutional layers.
-    Adds the input of the first to the output of the last.
+    Custom Residual Block with three convolutional layers and three batch normalization layers.
 
+    Layers:
+        conv1: First convolutional layer
+        bn1: First batch normalization layer
+        relu: ReLU activation
+        conv2: Second convolutional layer
+        bn2: Second batch normalization layer
+        relu2: ReLU activation
+        conv3: Third convolutional layer
+        bn3: Third batch normalization layer
+        relu3: ReLU activation
+    
     Args:
         channels (int): Number of input and output channels.
-
-    Returns:
-        torch.Tensor: Output tensor after applying the residual block.
     """
 
     def __init__(self, channels: int):
@@ -55,7 +63,27 @@ class CustomResidualBlock(nn.Module):
 
 class GC4(nn.Module):
     """
-    Docstring for GC4
+    Fourth Custom Convolutional Neural Network for Garbage Classification
+
+    Layers:
+        conv1: First convolutional layer (dim -> 256x256x32)
+        resblock1: First residual block
+        conv2: Second convolutional layer (dim -> 86x86x64)
+        resblock2: Second residual block
+        conv3: Third convolutional layer (dim -> 30x30x128)
+        resblock3: Third residual block
+        pool: First max pooling layer (dim -> 15x15x128)
+        conv4: Fourth convolutional layer (dim -> 8x8x256)
+        conv5: Fifth convolutional layer (dim -> 8x8x512)
+        global_avg_pool: Global average pooling layer (dim -> 1x1x512)
+        dropout: Dropout layer
+        fc: Output layer (dim -> num_classes)
+
+    Notes:
+        This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
+
+    Args:
+        num_classes (int): Number of output classes.
     """
     
     def __init__(self, num_classes: int):
@@ -113,6 +141,7 @@ class GC4(nn.Module):
         # Initializing weights
         self._init_weights()
 
+
     def _init_weights(self):
         """
         Initialize weights for convolutional and fully connected layers using Kaiming Normal initialization.
@@ -137,39 +166,39 @@ class GC4(nn.Module):
                 f"GC4 expects input shape (N, 3, 256, 256), got (N, {x.size(1)}, {x.size(2)}, {x.size(3)})"
             )
 
-        # Initial convolutional layer
+        # Block 1
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
 
-        # First Residual Block
+        # Block 2
         out = self.resblock1(out)
 
-        # Second convolutional layer
+        # Block 3
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.relu2(out)
 
-        # Second Residual Block
+        # Block 4
         out = self.resblock2(out)
 
-        # Third convolutional layer
+        # Block 5
         out = self.conv3(out)
         out = self.bn3(out)
         out = self.relu3(out)
 
-        # Third Residual Block
+        # Block 6
         out = self.resblock3(out)
 
         # Max Pooling
         out = self.pool(out)
 
-        # Fourth convolutional layer
+        # Block 7
         out = self.conv4(out)
         out = self.bn4(out)
         out = self.relu4(out)
 
-        # Fifth convolutional layer
+        # Block 8
         out = self.conv5(out)
         out = self.bn5(out)
         out = self.relu5(out)

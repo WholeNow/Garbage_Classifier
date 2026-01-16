@@ -1,32 +1,32 @@
 import torch
 import torch.nn as nn
 
+
 class GC3(nn.Module):
+    """
+    Third Custom Convolutional Neural Network for Garbage Classification
+
+    Layers:
+        conv1: First convolutional layer (dim -> 256x256x16)
+        conv2: Second convolutional layer (dim -> 128x128x32)
+        conv3: Third convolutional layer (dim -> 64x64x64)
+        pool: First max pooling layer (dim -> 32x32x64)
+        conv4: Fourth convolutional layer (dim -> 16x16x128)
+        conv5: Fifth convolutional layer (dim -> 8x8x128)
+        conv6: Sixth convolutional layer (dim -> 4x4x256)
+        fc1: Fully connected layer (dim -> 1024)
+        dropout: Dropout layer
+        fc2: Output layer (dim -> num_classes)
+
+    Notes:
+        This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
+
+    Args:
+        num_classes (int): Number of output classes.
+    """
+    
     def __init__(self, num_classes: int):
         super(GC3, self).__init__()
-
-        """
-        Third Custom Convolutional Neural Network for Garbage Classification
-
-        Layers:
-            conv1: First convolutional layer (dim -> 256x256x16)
-            conv2: Second convolutional layer (dim -> 128x128x32)
-            conv3: Third convolutional layer (dim -> 64x64x64)
-            pool: First max pooling layer (dim -> 32x32x64)
-            conv4: Fourth convolutional layer (dim -> 16x16x128)
-            conv5: Fifth convolutional layer (dim -> 8x8x128)
-            conv6: Sixth convolutional layer (dim -> 4x4x256)
-            fc1: Fully connected layer (dim -> 1024)
-            dropout: Dropout layer
-            fc2: Output layer (dim -> num_classes)
-
-        Notes:
-            This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
-
-        Args:
-            num_classes (int): Number of output classes.
-        """
-
         # --- Layer Definition ---
         # Output size: (image_size - kernel_size + 2*padding) / stride + 1
         # Receptive field: rl = rl−1 + (kl − 1) × jl−1

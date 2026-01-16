@@ -21,6 +21,7 @@ class GC1(nn.Module):
     Args:
         num_classes (int): Number of output classes.
     """
+    
     def __init__(self, num_classes: int):
         super(GC1, self).__init__()
         
@@ -54,6 +55,7 @@ class GC1(nn.Module):
         
         # Initializing weights
         self._init_weights()
+        
         
     def _init_weights(self):
         """
