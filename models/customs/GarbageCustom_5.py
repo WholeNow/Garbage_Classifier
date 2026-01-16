@@ -64,45 +64,44 @@ class GC5(nn.Module):
         # --- Layer Definition ---
         # Output size: (image_size - kernel_size + 2*padding) / stride + 1
         # Receptive field: rl = rl−1 + (kl − 1) × jl−1
-        # First convolutional layer (dim -> 256x256x64)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1) # RF: 3
+        # First convolutional layer (dim -> 256x256x32)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1, stride=1) # RF: 3
         self.relu = nn.ReLU()
 
         # First Residual Block
-        self.resblock1 = CustomResidualBlock2(channels=64) # RF - conv1: 5 --> RF - conv2: 7 --> RF - conv3: 9
+        self.resblock1 = CustomResidualBlock2(channels=32) # RF - conv1: 5 --> RF - conv2: 7 --> RF - conv3: 9
 
-        # First pooling layer (dim -> 86x86x128)
+        # First pooling layer (dim -> 86x86x32)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=3, padding=0) # RF: 11
 
         # Second Residual Block
-        self.resblock2 = CustomResidualBlock2(channels=128) # RF - conv1: 17 --> RF - conv2: 23 --> RF - conv3: 29
-
-        # Second pooling layer (dim -> 30x30x256)
+        self.resblock2 = CustomResidualBlock2(channels=64) # RF - conv1: 17 --> RF - conv2: 23 --> RF - conv3: 29
+        # Second pooling layer (dim -> 30x30x64)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=3, padding=0) # RF: 35
 
         # Third Residual Block
-        self.resblock3 = CustomResidualBlock2(channels=256) # RF - conv1: 53 --> RF - conv2: 71 --> RF - conv3: 89
+        self.resblock3 = CustomResidualBlock2(channels=128) # RF - conv1: 53 --> RF - conv2: 71 --> RF - conv3: 89
 
-        # Third pooling layer (dim -> 15x15x512)
+        # Third pooling layer (dim -> 15x15x256)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0) # RF: 98
 
-        # Second convolutional layer (dim -> 8x8x512)
-        self.conv4 = nn.Conv2d(512, 512, kernel_size=3, padding=1, stride=2) # RF: 134
+        # Second convolutional layer (dim -> 8x8x256)
+        self.conv4 = nn.Conv2d(256, 256, kernel_size=3, padding=1, stride=2) # RF: 134
         self.relu4 = nn.ReLU()
 
-        # Third convolutional layer (dim -> 3x3x512)
-        self.conv5 = nn.Conv2d(512, 512, kernel_size=4, padding=0, stride=2) # RF: 242
+        # Third convolutional layer (dim -> 3x3x256)
+        self.conv5 = nn.Conv2d(256, 256, kernel_size=4, padding=0, stride=2) # RF: 242
         self.relu5 = nn.ReLU()
 
 
-        # Global Average Pooling layer (dim -> 1x1x512)
+        # Global Average Pooling layer (dim -> 1x1x256)
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
 
         # Dropout layer
         self.dropout = nn.Dropout(p=0.4)
 
         # Output layer (dim -> num_classes)
-        self.fc = nn.Linear(in_features=512, out_features=num_classes)
+        self.fc = nn.Linear(in_features=256, out_features=num_classes)
 
         # Initializing weights
         self._init_weights()
@@ -158,10 +157,14 @@ class GC5(nn.Module):
         out = self.conv4(out)
         out = self.relu4(out)
 
-        # Global Average Pooling
-        out = self.global_avg_pool(out) # dim -> 1x1x512
-        out = torch.flatten(out, 1) # Flatten -> 512
+        # Block 6
+        out = self.conv5(out)
+        out = self.relu5(out)
 
+        # Global Average Pooling
+        out = self.global_avg_pool(out) # dim -> 1x1x256
+        out = torch.flatten(out, 1) # Flatten -> 256
+        
         # Dropout
         out = self.dropout(out)
 
