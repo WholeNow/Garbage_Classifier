@@ -15,17 +15,17 @@ class CustomResidualBlock2(nn.Module):
     def __init__(self, channels: int):
         super(CustomResidualBlock2, self).__init__()
         
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1, bias=False)
+        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
         self.relu = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1, bias=False)
+        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
         self.relu2 = nn.ReLU()
 
         self.conv3 = nn.Conv2d(in_channels=channels, out_channels=channels*2, kernel_size=3, padding=1, stride=1, bias=False)
         self.bn = nn.BatchNorm2d(channels*2)
         self.relu3 = nn.ReLU()
 
-        self.eyeAdapt = nn.Conv2d(in_channels=channels, out_channels=channels*2, kernel_size=1, padding=0, stride=1, bias=False)
+        self.eyeAdapt = nn.Conv2d(in_channels=channels, out_channels=channels*2, kernel_size=1, padding=0, stride=1)
 
     
     def forward(self, x):
@@ -65,7 +65,7 @@ class GC5(nn.Module):
         # Output size: (image_size - kernel_size + 2*padding) / stride + 1
         # Receptive field: rl = rl−1 + (kl − 1) × jl−1
         # First convolutional layer (dim -> 256x256x64)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1, bias=False) # RF: 3
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, padding=1, stride=1) # RF: 3
         self.relu = nn.ReLU()
 
         # First Residual Block
@@ -86,9 +86,14 @@ class GC5(nn.Module):
         # Third pooling layer (dim -> 15x15x512)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0) # RF: 98
 
-        # Fourth convolutional layer (dim -> 8x8x512)
-        self.conv4 = nn.Conv2d(512, 512, kernel_size=3, padding=1, stride=2, bias=False) # RF: 134
+        # Second convolutional layer (dim -> 8x8x512)
+        self.conv4 = nn.Conv2d(512, 512, kernel_size=3, padding=1, stride=2) # RF: 134
         self.relu4 = nn.ReLU()
+
+        # Third convolutional layer (dim -> 3x3x512)
+        self.conv5 = nn.Conv2d(512, 512, kernel_size=4, padding=0, stride=2) # RF: 242
+        self.relu5 = nn.ReLU()
+
 
         # Global Average Pooling layer (dim -> 1x1x512)
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
