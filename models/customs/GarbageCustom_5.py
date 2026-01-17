@@ -15,19 +15,19 @@ class CustomResidualBlock2(nn.Module):
     def __init__(self, channels: int):
         super(CustomResidualBlock2, self).__init__()
         
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
+        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=int(channels*2), kernel_size=3, padding=1, stride=1)
         self.relu = nn.ReLU()
 
-        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=channels, kernel_size=3, padding=1, stride=1)
+        self.conv2 = nn.Conv2d(in_channels=int(channels*2), out_channels=int(channels*3), kernel_size=3, padding=1, stride=1)
         self.relu2 = nn.ReLU()
 
-        self.conv3 = nn.Conv2d(in_channels=channels, out_channels=channels*2, kernel_size=3, padding=1, stride=1, bias=False)
-        self.bn = nn.BatchNorm2d(channels*2)
+        # Adaptation layer for identity connection
+        self.eyeAdapt = nn.Conv2d(in_channels=channels, out_channels=int(channels*3), kernel_size=1, stride=1, padding=0, bias=False)
+        self.bn = nn.BatchNorm2d(int(channels*3))
         self.relu3 = nn.ReLU()
-
-        self.eyeAdapt = nn.Conv2d(in_channels=channels, out_channels=channels*2, kernel_size=1, padding=0, stride=1)
-
+        
     
+
     def forward(self, x):
         
         # Adapt identity to match output channels
@@ -41,14 +41,10 @@ class CustomResidualBlock2(nn.Module):
         out = self.conv2(out)
         out = self.relu2(out)
 
-        # Third convolutional block
-        out = self.conv3(out)
+        # Add the input (identity) to the output, apply ReLU and BatchNorm
+        out = out + identity
         out = self.bn(out)
         out = self.relu3(out)
-
-        # Add the input (identity) to the output
-        out = out + identity
-        out = self.relu(out)
 
         return out
     
@@ -64,44 +60,49 @@ class GC5(nn.Module):
         # --- Layer Definition ---
         # Output size: (image_size - kernel_size + 2*padding) / stride + 1
         # Receptive field: rl = rl−1 + (kl − 1) × jl−1
-        # First convolutional layer (dim -> 256x256x32)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1, stride=1) # RF: 3
+        # First convolutional layer (dim -> 256x256x4)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=4, kernel_size=3, padding=1, stride=1) # RF: 3
         self.relu = nn.ReLU()
 
-        # First Residual Block
-        self.resblock1 = CustomResidualBlock2(channels=32) # RF - conv1: 5 --> RF - conv2: 7 --> RF - conv3: 9
+        # First Pooling layer (dim -> 128x128x4)
+        self.pool1 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 4 
 
-        # First pooling layer (dim -> 86x86x32)
-        self.pool1 = nn.MaxPool2d(kernel_size=3, stride=3, padding=0) # RF: 11
+        # First Residual Block (dim -> 128x128x12)
+        self.resblock1 = CustomResidualBlock2(channels=4) # RF - conv1: 8  --> conv2: 12  --> conv3: 16
+        
+        # Second Pooling layer (dim -> 64x64x12)
+        self.pool2 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 18
 
-        # Second Residual Block
-        self.resblock2 = CustomResidualBlock2(channels=64) # RF - conv1: 17 --> RF - conv2: 23 --> RF - conv3: 29
-        # Second pooling layer (dim -> 30x30x64)
-        self.pool2 = nn.MaxPool2d(kernel_size=3, stride=3, padding=0) # RF: 35
+        # Second Residual Block (dim -> 64x64x36)
+        self.resblock2 = CustomResidualBlock2(channels=12) # RF - conv1: 26  --> conv2: 34  --> conv3: 42
 
-        # Third Residual Block
-        self.resblock3 = CustomResidualBlock2(channels=128) # RF - conv1: 53 --> RF - conv2: 71 --> RF - conv3: 89
+        # Third Pooling layer (dim -> 32x32x36)
+        self.pool3 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 46
 
-        # Third pooling layer (dim -> 15x15x256)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0) # RF: 98
+        # Third Residual Block (dim -> 32x32x108)
+        self.resblock3 = CustomResidualBlock2(channels=36) # RF - conv1: 66 --> conv2: 82 --> conv3: 114
 
-        # Second convolutional layer (dim -> 8x8x256)
-        self.conv4 = nn.Conv2d(256, 256, kernel_size=3, padding=1, stride=2) # RF: 134
-        self.relu4 = nn.ReLU()
+        # Fourth Pooling layer (dim -> 16x16x108)
+        self.pool4 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 122
 
-        # Third convolutional layer (dim -> 3x3x256)
-        self.conv5 = nn.Conv2d(256, 256, kernel_size=4, padding=0, stride=2) # RF: 242
-        self.relu5 = nn.ReLU()
+        # # Fourth Residual Block (dim -> 16x16x324)
+        self.resblock4 = CustomResidualBlock2(channels=108) # RF - conv1: 138  --> conv2: 154  --> conv3: 170
 
+        # Fifth Pooling layer (dim -> 8x8x324)
+        self.pool5 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 186
 
-        # Global Average Pooling layer (dim -> 1x1x256)
+        # Second convolutional layer (dim -> 4x4x512)
+        self.conv2 = nn.Conv2d(324, 512, kernel_size=4, padding=1, stride=2) 
+        self.relu2 = nn.ReLU()
+
+        # Global Average Pooling layer (dim -> 1x1x512)
         self.global_avg_pool = nn.AdaptiveAvgPool2d(1)
 
         # Dropout layer
-        self.dropout = nn.Dropout(p=0.4)
+        self.dropout = nn.Dropout(p=0.5)
 
         # Output layer (dim -> num_classes)
-        self.fc = nn.Linear(in_features=256, out_features=num_classes)
+        self.fc = nn.Linear(in_features=512, out_features=num_classes)
 
         # Initializing weights
         self._init_weights()
@@ -135,36 +136,41 @@ class GC5(nn.Module):
         out = self.conv1(x)
         out = self.relu(out)
 
+        # Pooling 1
+        out = self.pool1(out)
+
         # Block 2
         out = self.resblock1(out)
 
-        # First Pooling
-        out = self.pool1(out)
+        # Pooling 2
+        out = self.pool2(out)
 
         # Block 3
         out = self.resblock2(out)
 
-        # Second Pooling
-        out = self.pool2(out)
+        # Pooling 3
+        out = self.pool3(out)
 
         # Block 4
         out = self.resblock3(out)
 
-        # Third Pooling
-        out = self.pool(out)
+        # Pooling 4
+        out = self.pool4(out)
 
         # Block 5
-        out = self.conv4(out)
-        out = self.relu4(out)
+        out = self.resblock4(out)
+
+        # Pooling 5
+        out = self.pool5(out)
 
         # Block 6
-        out = self.conv5(out)
-        out = self.relu5(out)
+        out = self.conv2(out)
+        out = self.relu2(out)
 
         # Global Average Pooling
-        out = self.global_avg_pool(out) # dim -> 1x1x256
-        out = torch.flatten(out, 1) # Flatten -> 256
-        
+        out = self.global_avg_pool(out)
+        out = out.view(out.size(0), -1)  # Flatten
+
         # Dropout
         out = self.dropout(out)
 
