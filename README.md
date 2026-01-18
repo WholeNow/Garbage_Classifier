@@ -69,6 +69,8 @@ The project uses two configuration classes in `config.py`: `TrainConfig` and `Te
 | `GC1` | `3 x 256 x 256` | ❌ | Custom CNN; test 1 |
 | `GC2` | `3 x 256 x 256` | ❌ | Custom CNN with dropout and a deeper head |
 | `GC3` | `3 x 256 x 256` | ❌ | Even deeper custom CNN with dropout, batch normalization, and additional convolutional layers |
+| `GC4` | `3 x 256 x 256` | ❌ | Residual-style custom CNN with early downsampling and GAP head |
+| `GC5` | `3 x 256 x 256` | ❌ | Deeper residual custom CNN with progressive channel expansion and GAP head |
 ### Xception (`model_name='Xception'`)
 
 The Xception weights commonly referenced for this architecture are a PyTorch port of the Keras implementation (credited to tstandley, adapted by cadene):
@@ -133,10 +135,14 @@ GC4 is a residual-style CNN designed to be deeper than GC3 while keeping the hea
 - l2_alpha = 0.0008
 
 ### GarbageCustom_5 / GC5 (`model_name='GC5'`)
+GC5 is a deeper residual CNN with average pooling between stages and aggressive channel expansion, ending in a compact global-average-pooling head. Input shape is enforced at runtime.
 
-
+- Required input: **`3 x 256 x 256`** (set `img_size=256`), RGB only; no pretrained weights.
+- Body: conv1 (4 ch) + ReLU → AvgPool2d → 4 stacked residual blocks with channel growth 4→12→36→108→324, each block using adapted identity connections; avg pooling between blocks to downsample.
+- Head: conv2 to 512 ch, global average pooling, dropout 0.5, FC to `num_classes`.
 - l1_alpha = 0
-- l2_alpha = 0.0009
+- l2_alpha = 0.0012
+- learning_rate = 0.0003
 
 
 ## Garbage Dataset Normalization (Training From Scratch)
