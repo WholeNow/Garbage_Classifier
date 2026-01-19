@@ -18,7 +18,9 @@ def plot_training_metrics(
     train_accs: list, 
     val_accs: list, 
     val_steps: list, 
-    output_dir: str
+    output_dir: str,
+    train_steps: list | None = None,
+    scale_to_train: bool = True,
 ):
     """
     Plots training and validation metrics.
@@ -31,15 +33,28 @@ def plot_training_metrics(
         val_steps (list): List of validation steps.
         output_dir (str): Directory to save the plot.
     """
-    epochs = range(1, len(train_losses) + 1)
+    if train_steps is None:
+        train_steps = list(range(1, len(train_losses) + 1))
+    if len(train_steps) != len(train_losses) or len(train_steps) != len(train_accs):
+        raise ValueError(
+            "train_steps must have the same length as train_losses and train_accs"
+        )
     
     plt.figure(figsize=(12, 5))
     
     # Train vs Validation Loss
     plt.subplot(1, 2, 1)
-    plt.plot(epochs, train_losses, label='Train Loss')
+    plt.plot(train_steps, train_losses, label='Train Loss')
     if val_losses:
         plt.plot(val_steps, val_losses, label='Validation Loss', marker='o')
+
+    if scale_to_train and train_losses:
+        y_min = float(min(train_losses))
+        y_max = float(max(train_losses))
+        y_range = max(1e-8, y_max - y_min)
+        pad = 0.05 * y_range
+        plt.ylim(y_min - pad, y_max + pad)
+
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.title('Train vs Validation Loss')
@@ -47,9 +62,18 @@ def plot_training_metrics(
     
     # Train vs Validation Accuracy
     plt.subplot(1, 2, 2)
-    plt.plot(epochs, train_accs, label='Train Acc')
+    plt.plot(train_steps, train_accs, label='Train Acc')
     if val_accs:
         plt.plot(val_steps, val_accs, label='Validation Acc', marker='o')
+
+    if scale_to_train and train_accs:
+        y_min = float(min(train_accs))
+        y_max = float(max(train_accs))
+        y_range = max(1e-8, y_max - y_min)
+        pad = 0.05 * y_range
+        lower = max(0.0, y_min - pad)
+        plt.ylim(lower, 101.0)
+
     plt.xlabel('Epochs')
     plt.ylabel('Accuracy (%)')
     plt.title('Train vs Validation Accuracy')
@@ -62,11 +86,14 @@ def plot_training_metrics(
     
     # Check if running in a notebook
     try:
+        from IPython import get_ipython
         if 'IPKernelApp' in get_ipython().config:
             plt.show()
     except NameError:
         pass
     except AttributeError:
+        pass
+    except ImportError:
         pass
 
 
@@ -76,7 +103,9 @@ def validate(
     criterion: torch.nn.Module,
     device: torch.device,
     epoch: int,
-    num_epochs: int
+    num_epochs: int,
+    l1_lambda: float = 0.0,
+    l2_lambda: float = 0.0,
 ):
     """
     Validate the model on the validation set.
@@ -96,6 +125,17 @@ def validate(
     val_loss = 0.0
     val_correct = 0
     val_total = 0
+
+    # Compute regularization terms once (they're independent of the batch).
+    l1_reg = None
+    l2_reg = None
+    if l1_lambda or l2_lambda:
+        l1_reg = sum(
+            p.abs().sum() for name, p in model.named_parameters() if "weight" in name
+        )
+        l2_reg = sum(
+            p.pow(2.0).sum() for name, p in model.named_parameters() if "weight" in name
+        )
     
     val_pbar = tqdm(val_loader, desc=f"Epoch {epoch}/{num_epochs} [Val]" if num_epochs > 0 else f"Epoch {epoch} [Val]", leave=False)
     
@@ -104,6 +144,8 @@ def validate(
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
+            if l1_lambda or l2_lambda:
+                loss = loss + (l1_lambda * l1_reg) + (l2_lambda * l2_reg)
             
             val_loss += loss.item() * inputs.size(0)
             _, predicted = torch.max(outputs, 1)
@@ -163,16 +205,25 @@ def train(config: TrainConfig = None):
     val_acc_history = []
     val_epochs_list = []
 
-    if val_loader is not None and len(val_loader) > 0 and config.pretrained:
-      avg_val_loss_0, avg_val_acc_0 = validate(model, val_loader, criterion, device, 0, config.num_epochs)
-      val_loss_history.append(avg_val_loss_0)
-      val_acc_history.append(avg_val_acc_0)
-      val_epochs_list.append(0)
+    if val_loader is not None and len(val_loader) > 0 and getattr(config, "pretrained", False):
+        avg_val_loss_0, avg_val_acc_0 = validate(
+            model,
+            val_loader,
+            criterion,
+            device,
+            0,
+            config.num_epochs,
+            l1_lambda=getattr(config, "l1_lambda", 0.0),
+            l2_lambda=getattr(config, "l2_lambda", 0.0),
+        )
+        val_loss_history.append(avg_val_loss_0)
+        val_acc_history.append(avg_val_acc_0)
+        val_epochs_list.append(0)
 
-      current_lr = optimizer.param_groups[0]["lr"]
-      print(
-          f"Epoch 0 | LR: {current_lr:.6f} | Val Loss: {avg_val_loss_0:.4f} | Val Acc: {avg_val_acc_0:.2f}%"
-      )
+        current_lr = optimizer.param_groups[0]["lr"]
+        print(
+            f"Epoch 0 | LR: {current_lr:.6f} | Val Loss: {avg_val_loss_0:.4f} | Val Acc: {avg_val_acc_0:.2f}%"
+        )
     
     try:
         for epoch in range(1, config.num_epochs + 1):
@@ -213,7 +264,16 @@ def train(config: TrainConfig = None):
             train_acc_history.append(avg_train_acc)
 
             if epoch % config.val_epochs == 0:
-                avg_val_loss, avg_val_acc = validate(model, val_loader, criterion, device, epoch, config.num_epochs)
+                avg_val_loss, avg_val_acc = validate(
+                    model,
+                    val_loader,
+                    criterion,
+                    device,
+                    epoch,
+                    config.num_epochs,
+                    l1_lambda=getattr(config, "l1_lambda", 0.0),
+                    l2_lambda=getattr(config, "l2_lambda", 0.0),
+                )
                 
                 val_loss_history.append(avg_val_loss)
                 val_acc_history.append(avg_val_acc)

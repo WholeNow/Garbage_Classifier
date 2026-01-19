@@ -99,7 +99,6 @@ The ResNet-18 wrapper is based on the torchvision backbone with the classifier r
 - `pretrained=False`: you can use custom normalization, but the input size must stay `224 x 224`.
 
 ### GarbageCustom_1 / GC1 (`model_name='GC1'`)
-
 GC1 is a fixed-shape CNN and enforces the input tensor shape at runtime:
 
 - Required input: **`3 x 256 x 256`** (so set `img_size=256`)
