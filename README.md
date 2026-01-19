@@ -141,8 +141,8 @@ GC5 is a deeper residual CNN with average pooling between stages and aggressive 
 - Body: conv1 (4 ch) + ReLU → AvgPool2d → 4 stacked residual blocks with channel growth 4→12→36→108→324, each block using adapted identity connections; avg pooling between blocks to downsample.
 - Head: conv2 to 512 ch, global average pooling, dropout 0.5, FC to `num_classes`.
 - l1_alpha = 0
-- l2_alpha = 0.0012
-- learning_rate = 0.0003
+- l2_alpha = 0.00125
+- learning_rate = 0.0004
 
 
 ## Garbage Dataset Normalization (Training From Scratch)

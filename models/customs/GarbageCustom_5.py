@@ -51,7 +51,29 @@ class CustomResidualBlock2(nn.Module):
 
 class GC5(nn.Module):
     """
-    Docstring for GC5 Model.
+    Final custom Convolutional Neural Network for Garbage Classification
+
+    Layers:
+        conv1: First convolutional layer (dim -> 256x256x4)
+        pool1: First average pooling layer (dim -> 128x128x4)
+        resblock1: First residual block (dim -> 128x128x12)
+        pool2: Second average pooling layer (dim -> 64x64x12)
+        resblock2: Second residual block (dim -> 64x64x36)
+        pool3: Third average pooling layer (dim -> 32x32x36)
+        resblock3: Third residual block (dim -> 32x32x108)
+        pool4: Fourth average pooling layer (dim -> 16x16x108)
+        resblock4: Fourth residual block (dim -> 16x16x324)
+        pool5: Fifth average pooling layer (dim -> 8x8x324)
+        conv2: Second convolutional layer (dim -> 4x4x512)
+        global_avg_pool: Global average pooling layer (dim -> 1x1x512)
+        dropout: Dropout layer
+        fc: Output layer (dim -> num_classes)
+
+    Notes:
+        This model is fixed for RGB inputs only and expects tensors shaped as (N, 3, 256, 256).
+
+    Args:
+        num_classes (int): Number of output classes.
     """
     
     def __init__(self, num_classes: int):
