@@ -81,7 +81,7 @@ class TestConfig:
         root_dir: str,
         model_name: str,
         batch_size: int,
-            val_split: float,
+        val_split: float,
         test_split: float,
         img_size: int,
         mean: List[float],
@@ -91,10 +91,12 @@ class TestConfig:
         device: str,
         checkpoint_path: str,
         output_dir: str = "out_test",
+        save_wrong_images: bool = False
     ):
         # Paths and Model
         self.root_dir = root_dir
         self.output_dir = output_dir
+        self.save_wrong_images = save_wrong_images
         self.model_name = model_name
         
         # Inference Parameters
@@ -175,6 +177,7 @@ test_cfg = TestConfig(
     root_dir='images',
     model_name=None, # must match checkpoint model name
     output_dir="out_test",
+    save_wrong_images=True,
 
     # Inference Params
     batch_size=32,

@@ -1,11 +1,14 @@
 import os
+import shutil
 import argparse
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 from sklearn.metrics import confusion_matrix, f1_score, precision_recall_curve
+from sklearn.preprocessing import label_binarize
 
 from config import test_cfg, TestConfig
 from utils import get_device, get_model, load_model
@@ -44,21 +47,32 @@ def plot_confusion_matrix(y_true, y_pred, classes, output_dir):
         pass
 
 
-def plot_precision_recall_curve(y_true, y_scores, output_dir):
+def plot_precision_recall_curve(y_true, y_scores, classes, output_dir):
     """
-    Plots the Precision-Recall curve.
+    Plots the Precision-Recall curve for multiclass data.
 
     Args:
         y_true (list): True labels.
-        y_scores (list): Predicted scores/probabilities.
+        y_scores (list or np.array): Predicted probabilities for each class.
+        classes (list): List of class names.
         output_dir (str): Directory to save the precision-recall curve image.
     """
-    precision, recall, _ = precision_recall_curve(y_true, y_scores)
-    plt.figure(figsize=(8, 6))
-    plt.plot(recall, precision, marker='.')
+    # Binarize the output for multiclass
+    n_classes = len(classes)
+    y_true_bin = label_binarize(y_true, classes=range(n_classes))
+    y_scores = np.array(y_scores)
+
+    plt.figure(figsize=(10, 8))
+    
+    # Plot Precision-Recall curve for each class
+    for i in range(n_classes):
+        precision, recall, _ = precision_recall_curve(y_true_bin[:, i], y_scores[:, i])
+        plt.plot(recall, precision, lw=2, label=f'Class {classes[i]}')
+
     plt.xlabel('Recall')
     plt.ylabel('Precision')
-    plt.title('Precision-Recall Curve')
+    plt.title('Precision-Recall Curve (Multiclass)')
+    plt.legend(loc="best")
     plt.grid()
     plt.tight_layout()
 
@@ -117,13 +131,24 @@ def test(config: TestConfig = None):
     
     all_preds = []
     all_labels = []
+    all_probs = []
+
+    # Directory for wrong classifications
+    wrong_classified_dir = os.path.join(config.output_dir, "wrong_classified")
+    if config.save_wrong_images:
+        os.makedirs(wrong_classified_dir, exist_ok=True)
+        print(f"[INFO] Saving wrong classified images to '{wrong_classified_dir}'")
+    
+    global_idx = 0 # To track index in dataset
 
     pbar = tqdm(test_loader, desc="Testing", leave=False)
     
     with torch.no_grad():
         for inputs, labels in pbar:
+            batch_size = labels.size(0)
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
+            probs = torch.softmax(outputs, dim=1)
             _, predicted = torch.max(outputs, 1)
             
             total += labels.size(0)
@@ -135,6 +160,34 @@ def test(config: TestConfig = None):
             
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
+            all_probs.extend(probs.cpu().numpy())
+
+            # Save wrong classified images
+            if config.save_wrong_images:
+                # Move to CPU for processing
+                preds_cpu = predicted.cpu().numpy()
+                labels_cpu = labels.cpu().numpy()
+                
+                for i in range(batch_size):
+                    if preds_cpu[i] != labels_cpu[i]:
+                        # Get original image path
+                        # Assuming test_loader is a Subset, we access the underlying dataset
+                        dataset_idx = test_loader.dataset.indices[global_idx + i]
+                        img_path, _ = test_loader.dataset.dataset.data[dataset_idx]
+                        img_filename = os.path.basename(img_path)
+                        
+                        true_class = classes[labels_cpu[i]]
+                        pred_class = classes[preds_cpu[i]]
+                        
+                        new_filename = f"True_{true_class}_Pred_{pred_class}_{img_filename}"
+                        new_path = os.path.join(wrong_classified_dir, new_filename)
+                        
+                        try:
+                            shutil.copy(img_path, new_path)
+                        except Exception as e:
+                            print(f"[WARN] Could not copy image {img_path}: {e}")
+
+            global_idx += batch_size
 
     accuracy = 100 * correct / total
     f1_score_value = f1_score(all_labels, all_preds, average='weighted')
@@ -142,11 +195,14 @@ def test(config: TestConfig = None):
     print(f"[TEST] Test Set Accuracy: {accuracy:.2f}%")
     print(f"[TEST] Test Set F1 Score: {f1_score_value:.2f}")
     
+    # Create output directory if it doesn't exist
+    os.makedirs(config.output_dir, exist_ok=True)
+
     # Confusion Matrix
-    plot_confusion_matrix(all_labels, all_preds, classes)
+    plot_confusion_matrix(all_labels, all_preds, classes, config.output_dir)
 
     # Precision-Recall Curve
-    plot_precision_recall_curve(all_labels, all_preds, config.output_dir)
+    plot_precision_recall_curve(all_labels, all_probs, classes, config.output_dir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test Classifier")
@@ -163,6 +219,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, help="Number of data loader workers", default=None)
     parser.add_argument("--device", type=str, help="Device (cpu, cuda, mps, auto)", default=None)
     parser.add_argument("--checkpoint_path", type=str, help="Checkpoint filename", default=None)
+    parser.add_argument("--save_wrong_images", action="store_true", help="Save wrong classified images", default=None)
 
     args = parser.parse_args()
     
@@ -178,5 +235,6 @@ if __name__ == "__main__":
     if args.num_workers is not None: test_cfg.num_workers = args.num_workers
     if args.device is not None: test_cfg.device = args.device
     if args.checkpoint_path is not None: test_cfg.checkpoint_path = args.checkpoint_path
+    if args.save_wrong_images is not None: test_cfg.save_wrong_images = args.save_wrong_images
         
     test(test_cfg)

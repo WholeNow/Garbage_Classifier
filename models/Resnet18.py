@@ -14,7 +14,15 @@ class Resnet18(nn.Module):
     def __init__(self, num_classes: int, pretrained: bool = True):
         super().__init__()
         self.num_classes = num_classes
-        self.backbone = models.resnet18(pretrained=pretrained)
+        # torchvision>=0.13 deprecates `pretrained=` in favor of `weights=`.
+        try:
+            from torchvision.models import ResNet18_Weights
+
+            weights = ResNet18_Weights.DEFAULT if pretrained else None
+            self.backbone = models.resnet18(weights=weights)
+        except Exception:
+            # Fallback for older torchvision versions
+            self.backbone = models.resnet18(pretrained=pretrained)
         self.backbone.fc = nn.Linear(self.backbone.fc.in_features, num_classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
