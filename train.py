@@ -162,6 +162,17 @@ def train(config: TrainConfig = None):
     train_acc_history = []
     val_acc_history = []
     val_epochs_list = []
+
+    if val_loader is not None and len(val_loader) > 0 and config.pretrained:
+      avg_val_loss_0, avg_val_acc_0 = validate(model, val_loader, criterion, device, 0, config.num_epochs)
+      val_loss_history.append(avg_val_loss_0)
+      val_acc_history.append(avg_val_acc_0)
+      val_epochs_list.append(0)
+
+      current_lr = optimizer.param_groups[0]["lr"]
+      print(
+          f"Epoch 0 | LR: {current_lr:.6f} | Val Loss: {avg_val_loss_0:.4f} | Val Acc: {avg_val_acc_0:.2f}%"
+      )
     
     try:
         for epoch in range(1, config.num_epochs + 1):
