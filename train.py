@@ -8,8 +8,9 @@ from tqdm.auto import tqdm
 import matplotlib.pyplot as plt
 
 from config import train_cfg, TrainConfig
-from utils import set_seed, get_device, get_model, save_model
+from utils import set_seed, get_device, get_model, save_model, load_model
 from dataset import create_dataloaders
+from test import evaluate_on_loader
 
 
 def plot_training_metrics(
@@ -176,9 +177,13 @@ def train(config: TrainConfig = None):
     
     # Create output directory
     os.makedirs(config.output_dir, exist_ok=True)
+
+    # Default persistent split path (keeps train/val/test consistent across scripts)
+    if getattr(config, "split_file", None) is None:
+        config.split_file = os.path.join(config.output_dir, "splits.json")
     
     # Data loading
-    train_loader, val_loader, _ = create_dataloaders(config)
+    train_loader, val_loader, test_loader = create_dataloaders(config)
     
     # Model loading
     try:
@@ -311,11 +316,30 @@ def train(config: TrainConfig = None):
     print("[TRAIN] Completed.")
 
 
+    ckpt_for_test = last_best_path if (last_best_path and os.path.exists(last_best_path)) else last_model_path
+    test_output_dir = getattr(config, "_post_train_test_output_dir", None) or os.path.join(config.output_dir, "test")
+    save_wrong_images = bool(getattr(config, "_post_train_test_save_wrong_images", False))
+
+    try:
+        load_model(model, ckpt_for_test, device)
+        print(f"[INFO] Post-train test using checkpoint: {ckpt_for_test}")
+    except Exception as e:
+        print(f"[WARN] Could not load checkpoint for post-train test ({ckpt_for_test}): {e}")
+
+    evaluate_on_loader(
+        model,
+        test_loader,
+        device=device,
+        output_dir=test_output_dir,
+        save_wrong_images=save_wrong_images,
+    )
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train Classifier")
     
     parser.add_argument("--epochs", type=int, help="Number of epochs", default=None)
-    parser.add_argument("--batch_size", type=int, help="Batch size", default=None)
+    parser.add_argument("--batch_size",  type=int, help="Batch size", default=None)
     parser.add_argument("--lr", type=float, help="Learning rate", default=None)
     parser.add_argument("--output_dir", type=str, help="Output directory", default=None)
     parser.add_argument("--data_dir", type=str, help="Root directory for dataset", default=None)
@@ -335,6 +359,10 @@ if __name__ == "__main__":
     parser.add_argument("--num_workers", type=int, help="Number of data loader workers", default=None)
     parser.add_argument("--device", type=str, help="Device (cpu, cuda, mps, auto)", default=None)
     parser.add_argument("--checkpoint_path", type=str, help="Checkpoint filename", default=None)
+    parser.add_argument("--split_file", type=str, help="Path to persistent split json", default=None)
+    parser.add_argument("--run_test", action="store_true", help="Force enable automatic test after training")
+    parser.add_argument("--test_output_dir", type=str, help="Override test output directory", default=None)
+    parser.add_argument("--save_wrong_images", action="store_true", help="Save wrong images during post-train test")
 
     args = parser.parse_args()
     
@@ -360,5 +388,15 @@ if __name__ == "__main__":
     if args.num_workers is not None: train_cfg.num_workers = args.num_workers
     if args.device is not None: train_cfg.device = args.device
     if args.checkpoint_path is not None: train_cfg.checkpoint_path = args.checkpoint_path
+    if args.split_file is not None: train_cfg.split_file = args.split_file
+
+    if args.run_test: train_cfg.run_test_after_train = True 
+    else: train_cfg.run_test_after_train = False
+
+    # Optional: override post-train test output dir & wrong-image saving
+    if args.test_output_dir is not None:
+        train_cfg._post_train_test_output_dir = args.test_output_dir
+    if args.save_wrong_images:
+        train_cfg._post_train_test_save_wrong_images = True
         
     train(train_cfg)

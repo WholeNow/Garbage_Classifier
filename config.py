@@ -1,4 +1,5 @@
-from typing import List
+import os
+from typing import List, Optional
 
 
 class TrainConfig:
@@ -25,11 +26,15 @@ class TrainConfig:
         num_workers: int,
         device: str,
         checkpoint_path: str,
-        output_dir: str = "out"
+        run_test_after_train: bool,
+        output_dir: str = "out",
+        split_file: Optional[str] = None
     ):
         # Paths and Model
         self.root_dir = root_dir
         self.output_dir = output_dir
+        self.split_file = split_file
+        self.run_test_after_train = run_test_after_train
         self.model_name = model_name
         self.pretrained = pretrained
         
@@ -91,13 +96,15 @@ class TestConfig:
         device: str,
         checkpoint_path: str,
         output_dir: str = "out_test",
-        save_wrong_images: bool = False
+        save_wrong_images: bool = False,
+        split_file: Optional[str] = None,
     ):
         # Paths and Model
         self.root_dir = root_dir
         self.output_dir = output_dir
         self.save_wrong_images = save_wrong_images
         self.model_name = model_name
+        self.split_file = split_file
         
         # Inference Parameters
         self.batch_size = batch_size
@@ -137,6 +144,7 @@ train_cfg = TrainConfig(
     model_name=None,
     pretrained=True,
     output_dir="out",
+    run_test_after_train=True,
 
     # Hyperparameters
     batch_size=32,
@@ -169,6 +177,7 @@ train_cfg = TrainConfig(
     num_workers=0,
     device="auto",
     checkpoint_path="best.pth",
+    split_file=os.path.join("out", "splits.json"),
 )
 
 # Test Configuration
@@ -198,4 +207,5 @@ test_cfg = TestConfig(
     num_workers=0,
     device="auto",
     checkpoint_path="best.pth",
+    split_file=os.path.join("out", "splits.json"),
 )

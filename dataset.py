@@ -1,10 +1,12 @@
 import os
+import json
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, Subset
 from sklearn.model_selection import train_test_split
 from PIL import Image
 from tqdm.auto import tqdm
+from typing import Dict, List, Tuple, Optional
 
 
 class ClassificationDataset(Dataset):
@@ -32,7 +34,8 @@ class ClassificationDataset(Dataset):
         self.data = []
         for idx, class_name in enumerate(self.classes):
             class_dir = os.path.join(self.root_dir, class_name)
-            for img_name in os.listdir(class_dir):
+            # Sort filenames to keep dataset ordering deterministic across runs/OS.
+            for img_name in sorted(os.listdir(class_dir)):
                 if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
                     img_path = os.path.join(class_dir, img_name)
                     self.data.append((img_path, idx))
@@ -98,6 +101,77 @@ def get_dataset_stats(dataset: Dataset, batch_size: int, num_workers: int, img_s
     return mean.tolist(), std.tolist()
 
 
+def _to_relpath(root_dir: str, path: str) -> str:
+    rel = os.path.relpath(path, root_dir)
+    # Persist using POSIX-like separators for portability.
+    return rel.replace(os.sep, "/")
+
+
+def _split_json_payload(
+    *,
+    root_dir: str,
+    seed: int,
+    val_split: float,
+    test_split: float,
+    classes: List[str],
+    train_paths: List[str],
+    val_paths: List[str],
+    test_paths: List[str],
+) -> Dict[str, object]:
+    return {
+        "version": 1,
+        "root_dir": root_dir,
+        "seed": int(seed),
+        "val_split": float(val_split),
+        "test_split": float(test_split),
+        "classes": list(classes),
+        "splits": {
+            "train": list(train_paths),
+            "val": list(val_paths),
+            "test": list(test_paths),
+        },
+    }
+
+
+def _save_splits_json(path: str, payload: Dict[str, object]) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2, sort_keys=True)
+
+
+def _load_splits_json(path: str) -> Dict[str, object]:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _paths_to_indices(dataset: ClassificationDataset, rel_paths: List[str]) -> List[int]:
+    # Build mapping relpath -> index from current dataset
+    index_by_rel: Dict[str, int] = {}
+    for i, (abs_path, _) in enumerate(dataset.data):
+        rel = _to_relpath(dataset.root_dir, abs_path)
+        # If duplicates exist, keep the first occurrence.
+        if rel not in index_by_rel:
+            index_by_rel[rel] = i
+
+    missing: List[str] = []
+    indices: List[int] = []
+    for rel in rel_paths:
+        key = rel.replace("\\", "/")
+        idx = index_by_rel.get(key)
+        if idx is None:
+            missing.append(rel)
+        else:
+            indices.append(idx)
+
+    if missing:
+        preview = "\n".join(missing[:10])
+        more = "" if len(missing) <= 10 else f"\n... (+{len(missing) - 10} more)"
+        raise ValueError(
+            f"Split JSON refers to files not found under root_dir='{dataset.root_dir}'. Missing:\n{preview}{more}"
+        )
+    return indices
+
+
 def create_dataloaders(config):
     """
     Create dataloaders for training, validation and testing.
@@ -127,27 +201,75 @@ def create_dataloaders(config):
     ])
 
     full_dataset = ClassificationDataset(root_dir=config.root_dir, transform=transform)
-    
-    targets = full_dataset.get_targets()
-    dataset_indices = list(range(len(full_dataset)))
-    
-    # Split Test vs (Train+Val)
-    train_val_idx, test_idx = train_test_split(
-        dataset_indices, test_size=config.test_split, random_state=config.seed, stratify=targets
-    )
-    
-    # Split Train vs Val
-    train_val_targets = [targets[i] for i in train_val_idx]
-    
-    # Fix potential zero division or empty split if dataset is small
-    if len(train_val_idx) == 0:
-        raise ValueError("Dataset too small for the requested splits.")
 
-    relative_val_split = config.val_split / (1.0 - config.test_split)
-    
-    train_idx, val_idx = train_test_split(
-        train_val_idx, test_size=relative_val_split, random_state=config.seed, stratify=train_val_targets
-    )
+    split_file: Optional[str] = getattr(config, "split_file", None)
+    train_idx: List[int]
+    val_idx: List[int]
+    test_idx: List[int]
+
+    if split_file and os.path.exists(split_file):
+        print("qui")
+        payload = _load_splits_json(split_file)
+        splits = payload.get("splits") or {}
+        train_paths = splits.get("train") or []
+        val_paths = splits.get("val") or []
+        test_paths = splits.get("test") or []
+
+        stored_classes = payload.get("classes")
+        if stored_classes is not None and list(stored_classes) != list(full_dataset.classes):
+            raise ValueError(
+                "Split JSON classes do not match current dataset classes. "
+                f"JSON={stored_classes}, current={full_dataset.classes}"
+            )
+
+        train_idx = _paths_to_indices(full_dataset, list(train_paths))
+        val_idx = _paths_to_indices(full_dataset, list(val_paths))
+        test_idx = _paths_to_indices(full_dataset, list(test_paths))
+    else:
+        targets = full_dataset.get_targets()
+        dataset_indices = list(range(len(full_dataset)))
+
+        # Split Test vs (Train+Val)
+        train_val_idx, test_idx = train_test_split(
+            dataset_indices,
+            test_size=config.test_split,
+            random_state=config.seed,
+            stratify=targets,
+        )
+
+        # Split Train vs Val
+        train_val_targets = [targets[i] for i in train_val_idx]
+
+        # Fix potential zero division or empty split if dataset is small
+        if len(train_val_idx) == 0:
+            raise ValueError("Dataset too small for the requested splits.")
+
+        relative_val_split = config.val_split / (1.0 - config.test_split)
+
+        train_idx, val_idx = train_test_split(
+            train_val_idx,
+            test_size=relative_val_split,
+            random_state=config.seed,
+            stratify=train_val_targets,
+        )
+
+        if split_file:
+            train_paths = [_to_relpath(full_dataset.root_dir, full_dataset.data[i][0]) for i in train_idx]
+            val_paths = [_to_relpath(full_dataset.root_dir, full_dataset.data[i][0]) for i in val_idx]
+            test_paths = [_to_relpath(full_dataset.root_dir, full_dataset.data[i][0]) for i in test_idx]
+
+            payload = _split_json_payload(
+                root_dir=full_dataset.root_dir,
+                seed=config.seed,
+                val_split=config.val_split,
+                test_split=config.test_split,
+                classes=full_dataset.classes,
+                train_paths=train_paths,
+                val_paths=val_paths,
+                test_paths=test_paths,
+            )
+            _save_splits_json(split_file, payload)
+            print(f"[INFO] Saved data split to '{split_file}'")
 
     train_ds = Subset(full_dataset, train_idx)
     val_ds = Subset(full_dataset, val_idx)
