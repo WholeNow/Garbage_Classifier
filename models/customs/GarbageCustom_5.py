@@ -90,31 +90,31 @@ class GC5(nn.Module):
         self.pool1 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 4 
 
         # First Residual Block (dim -> 128x128x12)
-        self.resblock1 = CustomResidualBlock2(channels=4) # RF - conv1: 8  --> conv2: 12  --> conv3: 16
+        self.resblock1 = CustomResidualBlock2(channels=4) # RF - conv1: 8  --> conv2: 12  
         
         # Second Pooling layer (dim -> 64x64x12)
-        self.pool2 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 18
+        self.pool2 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 14
 
         # Second Residual Block (dim -> 64x64x36)
-        self.resblock2 = CustomResidualBlock2(channels=12) # RF - conv1: 26  --> conv2: 34  --> conv3: 42
+        self.resblock2 = CustomResidualBlock2(channels=12) # RF - conv1: 22 --> conv2: 30
 
         # Third Pooling layer (dim -> 32x32x36)
-        self.pool3 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 46
+        self.pool3 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 34
 
         # Third Residual Block (dim -> 32x32x108)
-        self.resblock3 = CustomResidualBlock2(channels=36) # RF - conv1: 66 --> conv2: 82 --> conv3: 114
+        self.resblock3 = CustomResidualBlock2(channels=36) # RF - conv1: 50 --> conv2: 66
 
         # Fourth Pooling layer (dim -> 16x16x108)
-        self.pool4 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 122
+        self.pool4 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 74
 
         # # Fourth Residual Block (dim -> 16x16x324)
-        self.resblock4 = CustomResidualBlock2(channels=108) # RF - conv1: 138  --> conv2: 154  --> conv3: 170
+        self.resblock4 = CustomResidualBlock2(channels=108) # RF - conv1: 106 --> conv2: 138
 
         # Fifth Pooling layer (dim -> 8x8x324)
-        self.pool5 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 186
+        self.pool5 = nn.AvgPool2d(kernel_size=2, stride=2) # RF: 154
 
         # Second convolutional layer (dim -> 4x4x512)
-        self.conv2 = nn.Conv2d(324, 512, kernel_size=4, padding=1, stride=2) 
+        self.conv2 = nn.Conv2d(324, 512, kernel_size=4, padding=1, stride=2) # RF: 250
         self.relu2 = nn.ReLU()
 
         # Global Average Pooling layer (dim -> 1x1x512)

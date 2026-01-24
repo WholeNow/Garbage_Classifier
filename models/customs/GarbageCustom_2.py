@@ -39,18 +39,18 @@ class GC2(nn.Module):
         self.relu2 = nn.ReLU()
 
         # First max pooling layer (dim -> 63x63x16)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0) # RF: 9
 
         # Third convolutional layer (dim -> 63x63x24)
-        self.conv3 = nn.Conv2d(16, 24, kernel_size=3, padding=1, stride=1) # RF: 11
+        self.conv3 = nn.Conv2d(16, 24, kernel_size=3, padding=1, stride=1) # RF: 17
         self.relu3 = nn.ReLU()
 
         # Fourth convolutional layer (dim -> 30x30x32)
-        self.conv4 = nn.Conv2d(24, 32, kernel_size=5, padding=1, stride=2) # RF: 27
+        self.conv4 = nn.Conv2d(24, 32, kernel_size=5, padding=1, stride=2) # RF: 33
         self.relu4 = nn.ReLU()
 
         # Second max pooling layer (dim -> 15x15x32)
-        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+        self.pool2 = nn.MaxPool2d(kernel_size=2, stride=2, padding=0) # RF: 41
 
         # Fully connected layer (dim -> 1024)
         # Channels 32. Flatten -> 32 * 15 * 15
